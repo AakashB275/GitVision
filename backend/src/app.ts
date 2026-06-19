@@ -56,5 +56,6 @@ app.get('/health', (req: Request, res: Response) => {
 app.use(errorMiddleware);
 
 app.listen(PORT, () => {
-  console.log(`App is listening on Port ${PORT}...`);
+  console.log('Connect to NeonDB Postgres successfully');
+  console.log(`Server is listening on Port ${PORT}`);
 });

@@ -1,4 +1,4 @@
-import express, { Request, Response, Router } from 'express';
+import express, {Request, Response, Router} from 'express';
 import analyzeRouter from './analyze.routes';
 import historyRouter from './history.routes';
 import userRouter from './user.routes'
