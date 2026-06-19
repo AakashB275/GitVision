@@ -11,8 +11,8 @@ export default function TopNav({ variant = 'landing', activeLink }: TopNavProps)
   return (
     <header className="flex h-14 shrink-0 items-center gap-6 border-b border-outline-variant/40 bg-surface-container-lowest px-6">
       <Link to="/" className="shrink-0 text-lg font-bold tracking-tight">
-        <span className="text-on-surface">Graph</span>
-        <span className="text-primary">Code</span>
+        <span className="text-on-surface">Git</span>
+        <span className="text-primary">Vision</span>
       </Link>
 
       {variant === 'dashboard' && (
@@ -29,15 +29,10 @@ export default function TopNav({ variant = 'landing', activeLink }: TopNavProps)
       <nav className="ml-auto flex items-center gap-6">
         {variant === 'landing' && (
           <>
-            {/* <a href="#docs" className="text-sm text-on-surface-variant transition-colors hover:text-on-surface">
-              Docs
-            </a>
+            {/* 
             <a href="#architecture" className="text-sm text-on-surface-variant transition-colors hover:text-on-surface">
               Architecture
-            </a>
-            <a href="#pricing" className="text-sm text-on-surface-variant transition-colors hover:text-on-surface">
-              Pricing
-            </a> */}
+             */}
           </>
         )}
 
@@ -47,22 +42,10 @@ export default function TopNav({ variant = 'landing', activeLink }: TopNavProps)
               <option>Branch: main</option>
             </select>
             <a
-              href="#docs"
-              className={`text-sm transition-colors hover:text-on-surface ${activeLink === 'docs' ? 'text-on-surface' : 'text-on-surface-variant'}`}
-            >
-              Docs
-            </a>
-            <a
               href="#architecture"
               className={`text-sm transition-colors hover:text-on-surface ${activeLink === 'architecture' ? 'border-b-2 border-primary pb-0.5 text-on-surface' : 'text-on-surface-variant'}`}
             >
               Architecture
-            </a>
-            <a
-              href="#pricing"
-              className={`text-sm transition-colors hover:text-on-surface ${activeLink === 'pricing' ? 'text-on-surface' : 'text-on-surface-variant'}`}
-            >
-              Pricing
             </a>
           </>
         )}

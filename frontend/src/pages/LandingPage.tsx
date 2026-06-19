@@ -1,5 +1,6 @@
-import { Link } from 'react-router'
-import { Plug, Terminal, Check, Network, Route, Users } from 'lucide-react'
+import { useNavigate } from 'react-router'
+import { Plug, Check, Network, Route, Users } from 'lucide-react'
+import { useAuth, useClerk } from '@clerk/react'
 import TopNav from '../components/layout/TopNav'
 
 const features = [
@@ -24,16 +25,27 @@ const features = [
 ]
 
 export default function LandingPage() {
+  const navigate = useNavigate()
+  const { isLoaded, isSignedIn } = useAuth()
+  const { openSignIn } = useClerk()
+
+  function handleAnalyzeRepo() {
+    if (!isLoaded) return
+
+    if (!isSignedIn) {
+      openSignIn({})
+      return
+    }
+
+    navigate('/home')
+  }
+
   return (
     <div className="min-h-screen bg-background text-on-surface">
       <TopNav variant="landing" />
 
       <section className="mx-auto grid max-w-6xl gap-12 px-6 py-16 lg:grid-cols-2 lg:items-center lg:py-24">
         <div>
-          <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-outline-variant/50 bg-surface-container px-3 py-1 text-xs text-on-surface-variant">
-            <span className="h-1.5 w-1.5 rounded-full bg-secondary" />
-            V2.4 KERNEL RELEASED
-          </span>
 
           <h1 className="mb-6 text-4xl font-bold leading-tight tracking-tight lg:text-5xl">
             Visualize Your Codebase Instantly.
@@ -45,17 +57,14 @@ export default function LandingPage() {
           </p>
 
           <div className="mb-6 flex flex-wrap gap-4">
-            <Link
-              to="/home"
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-on-primary transition-opacity hover:opacity-90"
+            <button
+              onClick={handleAnalyzeRepo}
+              disabled={!isLoaded}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-on-primary transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Plug className="h-4 w-4" />
-              Connect GitHub
-            </Link>
-            {/* <button className="inline-flex items-center gap-2 rounded-lg border border-outline-variant/60 px-5 py-2.5 text-sm text-on-surface transition-colors hover:border-primary/50">
-              <Terminal className="h-4 w-4" />
-              CLI Install
-            </button> */}
+              Analyze Repository
+            </button>
           </div>
 
           <div className="flex flex-wrap gap-6 text-xs text-on-surface-variant">

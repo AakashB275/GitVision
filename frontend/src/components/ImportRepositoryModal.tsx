@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
+import { useAuth, useClerk } from '@clerk/react'
 import { X, Link2, Info, Network } from 'lucide-react'
 
 interface ImportRepositoryModalProps {
@@ -14,6 +15,8 @@ export default function ImportRepositoryModal({
   const [internalOpen, setInternalOpen] = useState(true)
   const [repoUrl, setRepoUrl] = useState('')
   const navigate = useNavigate()
+  const { isLoaded, isSignedIn } = useAuth()
+  const { openSignIn } = useClerk()
 
   const isOpen = controlledOpen ?? internalOpen
 
@@ -23,7 +26,15 @@ export default function ImportRepositoryModal({
   }
 
   function handleVisualize() {
-    if (!repoUrl.trim()) return
+    if (!repoUrl.trim() || !isLoaded) return
+
+    if (!isSignedIn) {
+      // We stash the repo URL so we can resume the visualize flow after auth.
+      sessionStorage.setItem('pendingRepoUrl', repoUrl.trim())
+      openSignIn({})
+      return
+    }
+
     navigate('/project', { state: { repoUrl: repoUrl.trim() } })
   }
 
@@ -78,7 +89,7 @@ export default function ImportRepositoryModal({
           </button>
           <button
             onClick={handleVisualize}
-            disabled={!repoUrl.trim()}
+            disabled={!repoUrl.trim() || !isLoaded}
             className="flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-medium text-on-primary transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Network className="h-4 w-4" />
