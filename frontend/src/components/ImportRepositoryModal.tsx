@@ -15,6 +15,7 @@ export default function ImportRepositoryModal({
   const [internalOpen, setInternalOpen] = useState(true)
   const [repoUrl, setRepoUrl] = useState('')
   const navigate = useNavigate()
+  const [error, setError] = useState('')
   const { isLoaded, isSignedIn } = useAuth()
   const { openSignIn } = useClerk()
 
@@ -24,6 +25,24 @@ export default function ImportRepositoryModal({
     setInternalOpen(false)
     onClose?.()
   }
+
+  function parseGithubUrl(url: string) {
+    
+  const match = url.match(
+    /^https?:\/\/github\.com\/([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+?)(\.git)?\/?$/
+  )
+
+  if (!match) return null
+
+  return {
+    owner: match[1],
+    repo: match[2],
+  }
+}
+
+const isValidRepoUrl =
+  repoUrl.trim().length > 0 &&
+  parseGithubUrl(repoUrl.trim()) !== null
 
   function handleVisualize() {
     if (!repoUrl.trim() || !isLoaded) return
@@ -64,12 +83,30 @@ export default function ImportRepositoryModal({
         <div className="relative mb-4">
           <Link2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
           <input
-            type="url"
-            value={repoUrl}
-            onChange={(e) => setRepoUrl(e.target.value)}
-            placeholder="https://github.com/org/repo"
-            className="w-full rounded-lg border border-outline-variant/50 bg-surface-container py-2.5 pl-10 pr-4 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary/50 focus:outline-none"
-          />
+  type="url"
+  value={repoUrl}
+  onChange={(e) => {
+    const value = e.target.value
+    setRepoUrl(value)
+
+    if (!value.trim()) {
+      setError('')
+      return
+    }
+
+    if (!parseGithubUrl(value)) {
+      setError('Please enter a valid GitHub repository URL')
+    } else {
+      setError('')
+    }
+  }}
+  placeholder="https://github.com/org/repo"
+  className={`w-full rounded-lg border bg-surface-container py-2.5 pl-10 pr-4 text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none ${
+    error
+      ? 'border-red-500'
+      : 'border-outline-variant/50 focus:border-primary/50'
+  }`}
+/>
         </div>
 
         <div className="mb-6 flex gap-3 rounded-lg border border-outline-variant/40 bg-surface-container p-4">
@@ -89,7 +126,7 @@ export default function ImportRepositoryModal({
           </button>
           <button
             onClick={handleVisualize}
-            disabled={!repoUrl.trim() || !isLoaded}
+            disabled={!repoUrl.trim() || !isValidRepoUrl}
             className="flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-medium text-on-primary transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Network className="h-4 w-4" />

@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useAuth, useUser } from '@clerk/react'
 import { GitBranch, Clock, ExternalLink, Trash2, Plus, RefreshCw } from 'lucide-react'
-import DashboardLayout from '../components/layout/DashboardLayout'
-import { apiFetch } from '../lib/api';
+import { apiFetch } from '../lib/apiFetch';
 
 interface SavedRepo {
   id: string
@@ -92,7 +91,6 @@ export default function DashboardPage() {
   }
 
   return (
-    <DashboardLayout activeSidebarItem="explorer">
       <div className="h-full overflow-y-auto bg-background p-8">
         <div className="mb-8 flex items-center justify-between">
           <div>
@@ -219,6 +217,5 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
   )
 }

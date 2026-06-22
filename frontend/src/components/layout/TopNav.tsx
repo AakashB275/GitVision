@@ -41,12 +41,12 @@ export default function TopNav({ variant = 'landing', activeLink }: TopNavProps)
             <select className="rounded-md border border-outline-variant/50 bg-surface-container px-3 py-1.5 text-sm text-on-surface focus:border-primary/50 focus:outline-none">
               <option>Branch: main</option>
             </select>
-            <a
+            {/* <a
               href="#architecture"
               className={`text-sm transition-colors hover:text-on-surface ${activeLink === 'architecture' ? 'border-b-2 border-primary pb-0.5 text-on-surface' : 'text-on-surface-variant'}`}
             >
               Architecture
-            </a>
+            </a> */}
           </>
         )}
 

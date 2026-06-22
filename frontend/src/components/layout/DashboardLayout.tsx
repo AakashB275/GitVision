@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useLocation } from 'react-router'
 import TopNav from './TopNav'
 import Sidebar from './Sidebar'
 
@@ -8,6 +9,7 @@ interface DashboardLayoutProps {
   // activeNavLink?: 'docs' | 'architecture' | 'pricing'
   sidebarContent?: ReactNode
 }
+const SIDEBAR_ROUTES = ['/project','/home','/settings']
 
 export default function DashboardLayout({
   children,
@@ -15,11 +17,14 @@ export default function DashboardLayout({
   // activeNavLink = 'architecture',
   sidebarContent,
 }: DashboardLayoutProps) {
+  const location = useLocation()
+  const showSidebar = SIDEBAR_ROUTES.includes(location.pathname)
+
   return (
     <div className="flex h-screen flex-col bg-background">
       <TopNav variant="dashboard" />
       <div className="flex min-h-0 flex-1">
-        <Sidebar activeItem={activeSidebarItem}>{sidebarContent}</Sidebar>
+        {showSidebar && <Sidebar activeItem={activeSidebarItem}>{sidebarContent}</Sidebar>}
         <main className="relative min-w-0 flex-1 overflow-hidden">{children}</main>
       </div>
     </div>
