@@ -49,3 +49,11 @@ export async function findById(id: string) {
   );
   return result.rows[0] ?? null;
 }
+
+export async function deleteByUserAndId(userId: string, id: string) {
+  const result = await db.query(
+    `DELETE FROM analyses WHERE id = $1 AND user_id = $2 RETURNING *`,
+    [id, userId]
+  );
+  return result.rows[0] ?? null;
+}

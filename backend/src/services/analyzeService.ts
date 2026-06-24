@@ -55,14 +55,15 @@ export const analyzeService = {
   }
 };
 
-// ─── parser — dependency-cruiser ──────────────────────────────────────────────
-
 async function parseWithDependencyCruiser(projectDir: string) {
-  const { cruise } = await import('dependency-cruiser');
+  const { cruise } = await import('dependency-cruiser')
+
+  // On Windows, path.join(baseDir, absolutePath) duplicates the path when both
+  // are absolute — pass '.' relative to baseDir, not the absolute projectDir.
   const result = await cruise(
-    [projectDir],
+    ['.'],
     {
-      outputType: 'json',
+      baseDir: projectDir,
       exclude: {
         path: 'node_modules|dist|build|\\.git|__pycache__',
       },
@@ -70,46 +71,62 @@ async function parseWithDependencyCruiser(projectDir: string) {
         path: 'node_modules',
       },
     },
-  );
+  )
 
-  const modules = (result.output as any).modules;
-  return buildGraphJson(modules, projectDir);
+  const output = result.output as { modules: any[]; summary: any }
+  const modules = output.modules
+
+  if (!Array.isArray(modules)) {
+    throw new Error(`modules is not iterable, got: ${typeof modules}`)
+  }
+
+  return buildGraphJson(modules, projectDir)
 }
 
 function buildGraphJson(modules: any[], projectDir: string) {
-  const nodes: GraphNode[] = [];
-  const edges: GraphEdge[] = [];
-  const cycleNodeIds = new Set<string>();
+  const nodes: GraphNode[] = []
+  const edges: GraphEdge[] = []
+  const cycleNodeIds = new Set<string>()
+
+  // normalize once
+  const base = projectDir.replace(/\\/g, '/').replace(/\/?$/, '/')
+
+  function toRelative(absPath: string): string {
+    const normalized = absPath.replace(/\\/g, '/')
+    return normalized.startsWith(base)
+      ? normalized.slice(base.length)
+      : normalized   // already relative, or external
+  }
 
   for (const mod of modules) {
-    const id = path.relative(projectDir, mod.source);
+    const id = toRelative(mod.source)
 
     nodes.push({
       id,
       label:       path.basename(mod.source, path.extname(mod.source)),
       language:    detectLanguage(mod.source),
       isExternal:  mod.followable === false,
-      isCycleNode: false, // set below once we know all cycle members
-    });
+      isCycleNode: false,
+    })
 
     for (const dep of mod.dependencies ?? []) {
-      const targetId = path.relative(projectDir, dep.resolved);
+      const targetId = toRelative(dep.resolved)
 
       if (dep.circular) {
-        cycleNodeIds.add(id);
-        cycleNodeIds.add(targetId);
+        cycleNodeIds.add(id)
+        cycleNodeIds.add(targetId)
       }
 
       edges.push({
         source:     id,
         target:     targetId,
         isCircular: dep.circular ?? false,
-      });
+      })
     }
   }
 
   for (const node of nodes) {
-    if (cycleNodeIds.has(node.id)) node.isCycleNode = true;
+    if (cycleNodeIds.has(node.id)) node.isCycleNode = true
   }
 
   return {
@@ -119,27 +136,34 @@ function buildGraphJson(modules: any[], projectDir: string) {
     },
     nodes,
     edges,
-    cycles: extractCycles(modules, projectDir),
-  };
+    cycles: extractCycles(modules, base),
+  }
 }
 
-function extractCycles(modules: any[], projectDir: string): string[][] {
-  const cycles: string[][] = [];
-  const seen = new Set<string>();
+function extractCycles(modules: any[], base: string): string[][] {
+  const cycles: string[][] = []
+  const seen = new Set<string>()
 
   for (const mod of modules) {
     for (const dep of mod.dependencies ?? []) {
       if (dep.circular && dep.cycle) {
-        const key = [...dep.cycle].sort().join('|');
+        const key = [...dep.cycle].sort().join('|')
         if (!seen.has(key)) {
-          seen.add(key);
-          cycles.push(dep.cycle.map((p: string) => path.relative(projectDir, p)));
+          seen.add(key)
+          cycles.push(
+            dep.cycle.map((p: string) => {
+              const normalized = p.replace(/\\/g, '/')
+              return normalized.startsWith(base)
+                ? normalized.slice(base.length)
+                : normalized
+            })
+          )
         }
       }
     }
   }
 
-  return cycles;
+  return cycles
 }
 
 function detectLanguage(filePath: string): string {
@@ -169,20 +193,22 @@ interface GraphEdge {
 // ─── clone ─────────────────────────────────────────────────────────────────────
 
 async function cloneRepo(url: string): Promise<string> {
-  const tempDir = path.join(os.tmpdir(), `cdv-${uuid()}`);
-  await fs.mkdir(tempDir, { recursive: true });
+  // Use os.tmpdir() directly without path.join with __dirname
+  const tempDir = path.join(os.tmpdir(), `cdv-${uuid()}`)  // ← this is fine
+  await fs.mkdir(tempDir, { recursive: true })
 
   const clonePromise = simpleGit().clone(url, tempDir, [
     '--depth',         '1',
     '--single-branch',
     '--no-tags',
-  ]);
+  ])
 
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error('Git clone timed out after 30s')), 30_000);
-  });
+    setTimeout(() => reject(new Error('Git clone timed out after 30s')), 30_000)
+  })
 
-  await Promise.race([clonePromise, timeoutPromise]);
+  await Promise.race([clonePromise, timeoutPromise])
 
-  return tempDir;
+  return tempDir
 }
+

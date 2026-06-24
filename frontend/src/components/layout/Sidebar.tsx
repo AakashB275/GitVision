@@ -3,7 +3,6 @@ import type { ReactNode } from 'react'
 import { NavLink } from 'react-router'
 import { useUser } from '@clerk/react'
 import {
-  FolderOpen,
   GitBranch,
   Search,
   Settings,
@@ -15,18 +14,19 @@ import {
 } from 'lucide-react'
 
 interface SidebarProps {
-  activeItem?: 'explorer' | 'dependencies' | 'search' | 'settings' | 'account'
+  activeItem?: 'explorer' | 'dependencies' |'settings'
   children?: ReactNode
+  repoName?: string
+  branchName?: string
 }
 
 const navItems = [
-  { id: 'explorer' as const, label: 'Explorer', icon: FolderOpen, to: '/project' },
   { id: 'dependencies' as const, label: 'Dependencies', icon: GitBranch, to: '/project' },
-  { id: 'search' as const, label: 'Search', icon: Search, to: '/project' },
+  { id: 'explorer' as const, label: 'Explorer', icon: Search },
   { id: 'settings' as const, label: 'Settings', icon: Settings, to: '/settings' },
 ]
 
-export default function Sidebar({ activeItem = 'explorer', children }: SidebarProps) {
+export default function Sidebar({ activeItem = 'dependencies', children, repoName, branchName = 'main' }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
   const { isLoaded, user } = useUser()
 
@@ -63,13 +63,11 @@ export default function Sidebar({ activeItem = 'explorer', children }: SidebarPr
     >
       <div className={`border-b border-outline-variant/40 py-4 ${collapsed ? 'px-2' : 'px-4'}`}>
         <div className={collapsed ? 'flex flex-col items-center gap-3' : 'flex items-center gap-3'}>
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-container-high text-xs font-semibold text-primary">
-            PA
-          </div>
+          
           {!collapsed && (
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-primary">Project Alpha</p>
-              <p className="truncate text-xs text-on-surface-variant">main branch</p>
+              <p className="truncate text-sm font-semibold text-primary">{repoName || 'No Repository'}</p>
+              <p className="truncate text-xs text-on-surface-variant">{branchName}</p>
             </div>
           )}
           <button
@@ -89,7 +87,7 @@ export default function Sidebar({ activeItem = 'explorer', children }: SidebarPr
         {navItems.map(({ id, label, icon: Icon, to }) => (
           <NavLink
             key={id}
-            to={to}
+            to={to ?? '#'}
             title={collapsed ? label : undefined}
             className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
               collapsed ? 'justify-center' : ''

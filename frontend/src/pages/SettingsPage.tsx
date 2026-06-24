@@ -7,7 +7,7 @@ export default function SettingsPage() {
   const [colorScheme, setColorScheme] = useState('semantic')
 
   return (
-    <DashboardLayout activeSidebarItem="settings" activeNavLink="architecture">
+    <DashboardLayout activeSidebarItem="settings">
       <div className="p-8">
         <h1 className="mb-2 text-3xl font-bold text-on-surface">Settings</h1>
         <p className="mb-8 text-on-surface-variant">
