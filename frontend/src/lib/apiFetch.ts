@@ -1,4 +1,4 @@
-const API_BASE_URL: string =
+export const API_BASE_URL: string =
   (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env
     ?.VITE_API_BASE_URL ?? 'http://localhost:3000'
 

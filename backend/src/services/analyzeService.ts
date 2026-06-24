@@ -12,45 +12,60 @@ interface AnalyzeInput {
   repoUrl:   string;
   repoOwner: string;
   repoName:  string;
+  onProgress?: (stage: string, progress: number, message: string) => Promise<void>;
 }
 
 export const analyzeService = {
-  async analyze({ userId, repoUrl, repoOwner, repoName }: AnalyzeInput) {
+  async analyze({ 
+    userId, repoUrl, repoOwner, repoName, onProgress 
+  }: AnalyzeInput) {
 
-    // 1. get latest commit SHA — this is our cache key
-    const commitSha = await githubService.getLatestCommitSha(repoOwner, repoName);
-
-    // 2. check cache — if hit, record history and return immediately
-    const cached = await cacheService.getCachedGraph(commitSha);
-    if (cached) {
-      await analysisModel.insert({ userId, repoUrl, repoOwner, repoName, commitSha, status: 'done' });
-      return cached;
-    }
-
-    // 3. cache miss — insert a pending record so history shows in-progress
-    const analysis = await analysisModel.insert({
-      userId, repoUrl, repoOwner, repoName, commitSha, status: 'pending'
-    });
-
-    // 4. clone, parse, cache — always clean up temp dir
-    let tempDir: string | null = null;
     try {
-      tempDir = await cloneRepo(repoUrl);
-      const graph = await parseWithDependencyCruiser(tempDir);
+      await onProgress?.('fetching', 5, 'Getting latest commit...');
+      
+      const commitSha = await githubService.getLatestCommitSha(repoOwner, repoName);
 
-      await cacheService.setCachedGraph(commitSha, graph);
-      await analysisModel.updateStatus(analysis.id, 'done');
+      await onProgress?.('fetching', 10, 'Checking cache...');
+      
+      const cached = await cacheService.getCachedGraph(commitSha);
+      if (cached) {
+        await analysisModel.insert({ userId, repoUrl, repoOwner, repoName, commitSha, status: 'done' });
+        await onProgress?.('completed', 100, 'Loaded from cache');
+        return cached;
+      }
 
-      return graph;
+      await onProgress?.('fetching', 15, 'Cloning repository...');
+      
+      const analysis = await analysisModel.insert({
+        userId, repoUrl, repoOwner, repoName, commitSha, status: 'pending'
+      });
+
+      let tempDir: string | null = null;
+      try {
+        tempDir = await cloneRepo(repoUrl);
+        
+        await onProgress?.('parsing', 35, 'Parsing dependencies...');
+        const graph = await parseWithDependencyCruiser(tempDir);
+
+        await onProgress?.('building', 65, 'Building dependency graph...');
+        await cacheService.setCachedGraph(commitSha, graph);
+        
+        await onProgress?.('optimizing', 90, 'Optimizing results...');
+        await analysisModel.updateStatus(analysis.id, 'done');
+        
+        await onProgress?.('completed', 100, 'Analysis complete');
+
+        return graph;
+
+      } finally {
+        if (tempDir) {
+          await fs.rm(tempDir, { recursive: true, force: true });
+        }
+      }
 
     } catch (err: any) {
-      await analysisModel.updateStatus(analysis.id, 'failed', err?.message ?? 'Unknown error');
-      throw err; // let error middleware handle the response
-
-    } finally {
-      if (tempDir) {
-        await fs.rm(tempDir, { recursive: true, force: true });
-      }
+      await onProgress?.('error', 0, err?.message ?? 'Unknown error');
+      throw err;
     }
   }
 };

@@ -1,5 +1,5 @@
 import express, {Request, Response, Router} from 'express';
-import analyzeRouter from './analyze.routes';
+import analysisRoutes from './analysis.routes';
 import historyRouter from './history.routes';
 import userRouter from './user.routes'
 import savedRepoRouter from './savedRepo.routes'
@@ -11,7 +11,7 @@ router.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-router.use('/analyze', analyzeRouter);
+router.use('/analyses', analysisRoutes);
 router.use('/me', userRouter);
 router.use('/save-repos', savedRepoRouter);
 router.use('/history',historyRouter);

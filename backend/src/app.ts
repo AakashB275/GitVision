@@ -10,6 +10,9 @@ import { errorMiddleware } from './middlewares/error.middleware';
 import fs from 'fs/promises'
 import path from 'path'
 import os from 'os'
+import { analysisQueue, analysisWorker, analysisQueueEvents } from './jobs/analysis.jobs';
+import analysisRoutes from './routes/analysis.routes';
+import redis from './config/redis';
 
 dotenv.config();
 
@@ -64,8 +67,26 @@ app.get('/protected', requireAuth(), async (req: Request, res: Response) => {
 
 app.use('/api', apiRouter);
 
-app.get('/health', (req: Request, res: Response) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/health', async(req: Request, res: Response) => {
+  const redisOk = await redis.ping().then(() => true).catch(() => false);
+  
+  res.json({
+    status: redisOk ? 'healthy' : 'degraded',
+    redis: redisOk,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Queue stats
+app.get('/api/queue/stats', async (req, res) => {
+  const counts = await analysisQueue.getJobCounts();
+  const workers = await analysisQueue.getWorkers();
+
+  res.json({
+    jobCounts: counts,
+    activeWorkers: workers.length,
+    concurrency: 3,
+  });
 });
 
 app.use(errorMiddleware);
@@ -84,7 +105,17 @@ app.use(errorMiddleware);
 
 // await cleanOrphanedClones()
 
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received, shutting down gracefully...');
+  await analysisWorker.close();
+  await analysisQueue.close();
+  await redis.disconnect();
+  process.exit(0);
+});
+
 app.listen(PORT, () => {
   console.log('Connect to NeonDB Postgres successfully');
   console.log(`Server is listening on Port ${PORT}`);
+  console.log(`BullMQ worker started`);
+  console.log(`Redis connected`);
 });

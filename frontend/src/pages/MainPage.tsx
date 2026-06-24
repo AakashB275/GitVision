@@ -7,11 +7,9 @@ import DependencyGraph, {
 } from '../components/DependencyGraph'
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { useAuth } from '@clerk/react'
-import { apiFetch } from '../lib/apiFetch'
+import { apiFetch, API_BASE_URL } from '../lib/apiFetch'
 import FileTree from '../components/FileTree'
 import { buildFileTree } from '../lib/buildFileTree'
-
-// ── Types ──────────────────────────────────────────────────────────────────────
 
 export interface GraphNode {
   id: string
@@ -37,10 +35,9 @@ export interface GraphData {
 type FetchState =
   | { status: 'idle' }
   | { status: 'loading' }
+  | { status: 'streaming'; stage: string; progress: number; message: string }
   | { status: 'error'; message: string }
   | { status: 'done'; data: GraphData }
-
-// ── Main Page ──────────────────────────────────────────────────────────────────
 
 export default function MainPage() {
   const location = useLocation()
@@ -51,7 +48,6 @@ export default function MainPage() {
   const getTokenRef = useRef(getToken)
   getTokenRef.current = getToken
 
-  // Extract repo name (owner/repo) from URL
   const repoName = useMemo(() => {
     if (!repoUrl) return undefined
     return repoUrl.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '').replace(/\/$/, '')
@@ -70,25 +66,129 @@ export default function MainPage() {
     if (!repoUrl) return
 
     let cancelled = false
+    let eventSource: EventSource | null = null
 
-    apiFetch<GraphData>('/analyze', {
-      method: 'POST',
-      getToken: () => getTokenRef.current(),
-      body: JSON.stringify({ url: repoUrl }),
-    })
-      .then((data) => {
-        if (!cancelled) setState({ status: 'done', data })
-      })
-      .catch((err: unknown) => {
-        if (!cancelled)
+    async function runAnalysis() {
+      try {
+        // Step 1: POST to create analysis — returns immediately with { id }
+        const { id: analysisId } = await apiFetch<{ id: string; status: string }>(
+          '/analyses',
+          {
+            method: 'POST',
+            getToken: () => getTokenRef.current(),
+            body: JSON.stringify({ repositoryUrl: repoUrl }),
+          },
+        )
+
+        if (cancelled) return
+
+        // Step 2: Open SSE stream for real-time progress
+        const token = await getTokenRef.current()
+        const sseUrl = `${API_BASE_URL}/api/analyses/${analysisId}/stream${
+          token ? `?token=${encodeURIComponent(token)}` : ''
+        }`
+        eventSource = new EventSource(sseUrl)
+
+        setState({
+          status: 'streaming',
+          stage: 'queued',
+          progress: 0,
+          message: 'Waiting in queue…',
+        })
+
+        eventSource.onmessage = async (event) => {
+          if (cancelled) return
+
+          try {
+            const update = JSON.parse(event.data) as {
+              type: 'connected' | 'progress' | 'completed' | 'error'
+              stage?: string
+              progress?: number
+              message?: string
+              error?: string
+            }
+
+            switch (update.type) {
+              case 'progress':
+                setState({
+                  status: 'streaming',
+                  stage: update.stage || 'processing',
+                  progress: update.progress || 0,
+                  message: update.message || 'Processing…',
+                })
+                break
+
+              case 'completed':
+                eventSource?.close()
+                eventSource = null
+
+                // Step 3: Fetch the cached result
+                try {
+                  const graphData = await apiFetch<GraphData>(
+                    `/analyses/${analysisId}`,
+                    { getToken: () => getTokenRef.current() },
+                  )
+                  if (!cancelled) {
+                    setState({ status: 'done', data: graphData })
+                  }
+                } catch (fetchErr) {
+                  if (!cancelled) {
+                    setState({
+                      status: 'error',
+                      message:
+                        fetchErr instanceof Error
+                          ? fetchErr.message
+                          : 'Failed to fetch analysis results',
+                    })
+                  }
+                }
+                break
+
+              case 'error':
+                eventSource?.close()
+                eventSource = null
+                if (!cancelled) {
+                  setState({
+                    status: 'error',
+                    message: update.error || 'Analysis failed',
+                  })
+                }
+                break
+
+              case 'connected':
+                // Acknowledge connection — no state change needed
+                break
+            }
+          } catch (parseErr) {
+            console.error('Error parsing SSE message:', parseErr)
+          }
+        }
+
+        eventSource.onerror = () => {
+          if (cancelled) return
+          eventSource?.close()
+          eventSource = null
           setState({
             status: 'error',
-            message: err instanceof Error ? err.message : 'Something went wrong',
+            message: 'Connection to analysis stream lost. Please try again.',
           })
-      })
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setState({
+            status: 'error',
+            message:
+              err instanceof Error ? err.message : 'Something went wrong',
+          })
+        }
+      }
+    }
+
+    runAnalysis()
 
     return () => {
       cancelled = true
+      eventSource?.close()
     }
   }, [repoUrl])
 
@@ -161,7 +261,6 @@ export default function MainPage() {
     return buildFileTree(paths)
   }, [graph])
 
-  // Derive unique languages for the right panel
   const languages = useMemo(
   () =>
     [...new Set((graph?.nodes ?? []).map((n) => n.language))]
@@ -199,7 +298,20 @@ export default function MainPage() {
           )}
 
           {state.status === 'loading' && (
-            <p className="px-1 text-xs text-on-surface-variant animate-pulse">Analysing…</p>
+            <p className="px-1 text-xs text-on-surface-variant animate-pulse">Queuing analysis…</p>
+          )}
+
+          {state.status === 'streaming' && (
+            <div className="px-1">
+              <p className="mb-1 text-xs font-medium text-primary capitalize">{state.stage}</p>
+              <div className="h-1 w-full overflow-hidden rounded-full bg-surface-container-high">
+                <div
+                  className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
+                  style={{ width: `${state.progress}%` }}
+                />
+              </div>
+              <p className="mt-1 text-[10px] text-on-surface-variant">{state.progress}%</p>
+            </div>
           )}
 
           {state.status === 'error' && (
@@ -224,10 +336,8 @@ export default function MainPage() {
     >
       <div className="flex h-full">
 
-        {/* ── Graph canvas ─────────────────────────────────────────────────── */}
         <div ref={canvasRef} className="relative min-w-0 flex-1 bg-surface-container-lowest">
 
-          {/* Toolbar */}
           <div className="absolute left-4 top-4 z-10 flex gap-1 rounded-lg border border-outline-variant/40 bg-surface-container-low p-1">
             <button
               type="button"
@@ -280,11 +390,29 @@ export default function MainPage() {
             <div className="flex h-full flex-col items-center justify-center gap-3">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               <p className="animate-pulse text-sm text-on-surface-variant">
-                Cloning and analysing repository…
+                Queuing analysis…
               </p>
-              <p className="text-xs text-on-surface-variant opacity-60">
-                This may take up to 30 seconds for large repos.
-              </p>
+            </div>
+          )}
+
+          {state.status === 'streaming' && (
+            <div className="flex h-full flex-col items-center justify-center gap-4 px-8">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <div className="w-full max-w-xs">
+                <div className="mb-2 flex items-center justify-between text-xs">
+                  <span className="font-medium capitalize text-on-surface">{state.stage}</span>
+                  <span className="font-mono text-primary">{state.progress}%</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-surface-container-high">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
+                    style={{ width: `${state.progress}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-center text-xs text-on-surface-variant">
+                  {state.message}
+                </p>
+              </div>
             </div>
           )}
 
@@ -309,7 +437,6 @@ export default function MainPage() {
           )}
         </div>
 
-        {/* ── Right panel ──────────────────────────────────────────────────── */}
         {state.status === 'done' && (
           <aside className="w-72 shrink-0 overflow-y-auto border-l border-outline-variant/40 bg-surface-container-lowest p-5">
             <h2 className="mb-1 text-lg font-semibold text-on-surface">Analysis</h2>
@@ -317,7 +444,6 @@ export default function MainPage() {
               {new Date(state.data.meta.parsedAt).toLocaleString()}
             </p>
 
-            {/* Stats grid */}
             <div className="mb-6 grid grid-cols-2 gap-3">
               {[
                 { label: 'Files',    value: state.data.meta.fileCount,   color: 'text-primary' },
@@ -339,7 +465,6 @@ export default function MainPage() {
               ))}
             </div>
 
-            {/* Circular dependencies */}
             {state.data.cycles.length > 0 && (
               <div className="mb-6">
                 <p className="mb-2 text-sm font-medium text-on-surface">Circular Dependencies</p>
@@ -361,7 +486,6 @@ export default function MainPage() {
               </div>
             )}
 
-            {/* Languages */}
             {languages.length > 0 && (
               <div className="mb-6">
                 <p className="mb-2 text-sm font-medium text-on-surface">Languages</p>
@@ -378,7 +502,6 @@ export default function MainPage() {
               </div>
             )}
 
-            {/* Open in GitHub */}
             {repoUrl && (
               <a
                 href={repoUrl}
@@ -407,7 +530,6 @@ export default function MainPage() {
         
       </div>
 
-      {/* ── Floating chat toggle button ─────────────────────────────────── */}
       {!chatOpen && (
         <button
           onClick={() => setChatOpen(true)}
@@ -418,7 +540,6 @@ export default function MainPage() {
         </button>
       )}
 
-      {/* ── Floating chatbot input ──────────────────────────────────────── */}
       {chatOpen && (
         <div className="fixed bottom-6 left-1/2 z-50 w-full max-w-xl -translate-x-1/2 animate-slide-up">
           <form

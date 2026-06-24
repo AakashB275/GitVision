@@ -1,3 +1,0 @@
-4. Add BullMQ + Redis for job queue
-5. Add SSE for real-time progress  
-6. Add Redis as cache layer in front of Neon
