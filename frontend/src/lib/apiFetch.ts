@@ -9,10 +9,6 @@ export interface ApiFetchOptions extends RequestInit {
 /**
  * Thin wrapper around fetch that attaches the Clerk session token
  * and points at the backend's /api base.
- *
- * Usage:
- *   apiFetch<SavedRepo[]>('/save-repos', { getToken })
- *   apiFetch(`/save-repos/${id}`, { method: 'DELETE', getToken })
  */
 export async function apiFetch<T = unknown>(
   path: string,

@@ -17,9 +17,6 @@ export async function insert(params: SaveRepoParams) {
      RETURNING *`,
     [userId, repoUrl, repoOwner, repoName]
   );
-
-  // ON CONFLICT DO NOTHING returns no row on a duplicate save —
-  // fall back to fetching the existing one so the caller always gets a row back
   if (result.rows[0]) return result.rows[0];
 
   const existing = await db.query(

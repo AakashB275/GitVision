@@ -43,7 +43,6 @@ export async function validateGithubUrl(req: Request, res: Response, next: NextF
 
     const meta = (await response.json()) as { size: number };
 
-    // meta.size is in KB
     if (meta.size > 50_000) {
       return res.status(400).json({
         error: `Repo is too large (${Math.round(meta.size / 1024)}MB). Max is 50MB.`,

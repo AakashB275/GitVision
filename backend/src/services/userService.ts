@@ -3,7 +3,6 @@ import db from '../db';
 
 export const userService = {
   async getOrCreateUser(clerkId: string) {
-    // 1. check if user already exists in our DB
     const existing = await db.query(
       'SELECT * FROM users WHERE clerk_id = $1',
       [clerkId]
@@ -12,7 +11,6 @@ export const userService = {
       return existing.rows[0];
     }
 
-    // 2. fetch their profile from Clerk to populate our row
     const clerkUser = await clerkClient.users.getUser(clerkId);
 
     const email = clerkUser.emailAddresses[0]?.emailAddress;
@@ -21,7 +19,7 @@ export const userService = {
     }
 
     const username = clerkUser.username
-      ?? email.split('@')[0]; // fallback for Google/email signups with no username
+      ?? email.split('@')[0]; 
 
     const provider = clerkUser.externalAccounts[0]?.provider ?? 'email';
     const oauthProvider = provider.includes('github') ? 'github'

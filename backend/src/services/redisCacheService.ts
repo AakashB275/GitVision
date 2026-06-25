@@ -3,9 +3,7 @@ import { REDIS_KEYS, CACHE_TTL } from '../config/redis-keys';
 import db from '../db'; 
 
 export class CacheService {
-  /**
-   * Get with fallback to database
-   */
+  
   static async getOrFetch<T>(
     key: string,
     fetcher: () => Promise<T>,
@@ -34,9 +32,7 @@ export class CacheService {
     return data;
   }
 
-  /**
-   * Get graph by ID with cache
-   */
+  
   static async getGraphData(analysisId: string) {
     return this.getOrFetch(
       REDIS_KEYS.GRAPH_CACHE(analysisId),
@@ -56,9 +52,7 @@ export class CacheService {
     );
   }
 
-  /**
-   * Get repo metadata with cache
-   */
+ 
   static async getRepoMetadata(repoUrl: string) {
     return this.getOrFetch(
       REDIS_KEYS.REPO_CACHE(repoUrl),
@@ -73,9 +67,7 @@ export class CacheService {
     );
   }
 
-  /**
-   * Get user's analyses with cache
-   */
+
   static async getUserAnalyses(userId: string) {
     return this.getOrFetch(
       REDIS_KEYS.USER_REPOS(userId),
@@ -93,16 +85,11 @@ export class CacheService {
     );
   }
 
-  /**
-   * Invalidate cache
-   */
   static async invalidate(key: string) {
     await redis.del(key);
   }
 
-  /**
-   * Invalidate by pattern
-   */
+
   static async invalidatePattern(pattern: string) {
     const keys = await redis.keys(pattern);
     if (keys.length > 0) {
@@ -110,9 +97,6 @@ export class CacheService {
     }
   }
 
-  /**
-   * Cache analysis after completion
-   */
   static async cacheAnalysisResult(analysisId: string, data: any) {
     await redis.setex(
       REDIS_KEYS.GRAPH_CACHE(analysisId),
@@ -121,9 +105,7 @@ export class CacheService {
     );
   }
 
-  /**
-   * Batch cache operations
-   */
+
   static async batchSet(entries: Array<[key: string, value: any, ttl: number]>) {
     const pipe = redis.pipeline();
     for (const [key, value, ttl] of entries) {
@@ -132,9 +114,7 @@ export class CacheService {
     await pipe.exec();
   }
 
-  /**
-   * Cache stats
-   */
+
   static async getStats() {
     const info = await redis.info('stats');
     const keys = await redis.dbsize();

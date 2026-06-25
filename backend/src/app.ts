@@ -27,19 +27,15 @@ const PORT: number = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-// app.use(cors());
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (curl, Postman, mobile apps)
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
     callback(new Error(`CORS: origin ${origin} not allowed`));
   },
   credentials: true
 }));
-// SSE endpoints can't send custom headers, so the Clerk token is passed as
-// ?token=... query param. Promote it into Authorization BEFORE clerkMiddleware
-// runs so Clerk can validate it normally.
+// SSE endpoints can't send custom headers, so the Clerk token is passed as ?token=... query param. 
 app.use((req, _res, next) => {
   const token = req.query.token as string | undefined;
   if (token && !req.headers.authorization) {

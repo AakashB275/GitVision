@@ -13,9 +13,6 @@ interface SSEClient {
 const activeClients = new Map<string, SSEClient>();
 
 export class SSEService {
-  /**
-   * Setup SSE connection
-   */
   static async setupSSE(
     res: Response,
     analysisId: string,
@@ -87,9 +84,7 @@ export class SSEService {
     );
   }
 
-  /**
-   * Get current analysis progress
-   */
+  
   static async getProgress(analysisId: string) {
     const progressData = await redis.get(
       REDIS_KEYS.ANALYSIS_PROGRESS(analysisId)
@@ -97,9 +92,6 @@ export class SSEService {
     return progressData ? JSON.parse(progressData) : null;
   }
 
-  /**
-   * Broadcast message to all clients for an analysis
-   */
   static async broadcastProgress(analysisId: string, data: any) {
     await redis.publish(
       `analysis:${analysisId}:updates`,
@@ -107,19 +99,15 @@ export class SSEService {
     );
   }
 
-  /**
-   * Get active client count for an analysis
-   */
+
   static async getActiveClientCount(analysisId: string): Promise<number> {
     return await redis.scard(REDIS_KEYS.SSE_CLIENTS(analysisId));
   }
 
-  /**
-   * Cleanup disconnected clients (periodic)
-   */
+
   static async cleanupStaleClients() {
     const now = Date.now();
-    const maxAge = 30 * 60 * 1000; // 30 minutes
+    const maxAge = 30 * 60 * 1000; 
 
     for (const [clientId, client] of activeClients.entries()) {
       if (now - client.createdAt > maxAge) {

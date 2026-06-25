@@ -14,7 +14,6 @@ export default function TopNav({ variant = 'landing', activeLink, onSearchClick 
   return (
     <header className="flex h-14 shrink-0 items-center gap-6 border-b border-outline-variant/40 bg-surface-container-lowest px-6">
 
-      {/* Logo — goes to /dashboard if signed in, / otherwise */}
       <Link
         to={isSignedIn ? '/dashboard' : '/'}
         className="shrink-0 text-lg font-bold tracking-tight"
@@ -42,7 +41,6 @@ export default function TopNav({ variant = 'landing', activeLink, onSearchClick 
           </select>
         )}
 
-        {/* Dashboard button — visible on landing, active only when signed in */}
         {variant === 'landing' && (
           isSignedIn ? (
             <Link
@@ -67,7 +65,6 @@ export default function TopNav({ variant = 'landing', activeLink, onSearchClick 
           )
         )}
 
-        {/* Dashboard link in dashboard variant too, for consistency */}
         {variant === 'dashboard' && (
           <Link
             to="/dashboard"

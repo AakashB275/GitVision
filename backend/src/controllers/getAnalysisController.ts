@@ -18,8 +18,6 @@ export async function getAnalysisController(req: Request, res: Response) {
 
   if (analysis.user_id !== user.id) {
     return res.status(404).json({ error: 'Analysis not found', code: 'NOT_FOUND' });
-    // returning 404 instead of 403 here is deliberate — it avoids confirming
-    // to an attacker that the ID exists but belongs to someone else
   }
 
   return res.status(200).json(analysis);

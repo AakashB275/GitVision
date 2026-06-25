@@ -10,21 +10,17 @@ import { v4 as uuid } from 'uuid';
 
 const analysisRouter = Router();
 
-/**
- * POST /api/analyses
- * Create new analysis and queue job
- */
+
 analysisRouter.post('/', requireAuthMiddleware, async (req: Request, res: Response) => {
   try {
     const { repositoryUrl, branch } = req.body;
     const clerkId = getAuth(req).userId!;
 
-    // Validate input
     if (!repositoryUrl) {
       return res.status(400).json({ error: 'Repository URL required' });
     }
 
-    // Extract owner/repo from URL
+
     const match = repositoryUrl.match(
       /github\.com\/([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)/
     );
@@ -65,15 +61,10 @@ analysisRouter.post('/', requireAuthMiddleware, async (req: Request, res: Respon
   }
 });
 
-/**
- * GET /api/analyses/:analysisId
- * Get analysis with cache
- */
 analysisRouter.get('/:analysisId', requireAuthMiddleware, async (req: Request, res: Response) => {
   try {
     const analysisId = req.params.analysisId as string;
 
-    // Get with cache fallback
     const data = await CacheService.getGraphData(analysisId);
 
     if (!data) {
@@ -87,10 +78,7 @@ analysisRouter.get('/:analysisId', requireAuthMiddleware, async (req: Request, r
   }
 });
 
-/**
- * GET /api/analyses/:analysisId/progress
- * Get current progress
- */
+
 analysisRouter.get(
   '/:analysisId/progress',
   requireAuthMiddleware,
@@ -131,10 +119,7 @@ analysisRouter.get(
 );
 
 
-/**
- * GET /api/analyses
- * List user's analyses with cache
- */
+
 analysisRouter.get('/', requireAuthMiddleware, async (req: Request, res: Response) => {
   try {
     const clerkId = getAuth(req).userId!;

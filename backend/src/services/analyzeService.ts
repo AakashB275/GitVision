@@ -30,7 +30,6 @@ export const analyzeService = {
       
       const cached = await cacheService.getCachedGraph(commitSha);
       if (cached) {
-        // Insert the record with the real commit_sha (row doesn't exist yet)
         await analysisModel.insert({ id: analysisId, userId, repoUrl, repoOwner, repoName, commitSha, status: 'done' });
         await onProgress?.('completed', 100, 'Loaded from cache');
         return cached;
@@ -38,7 +37,6 @@ export const analyzeService = {
 
       await onProgress?.('fetching', 15, 'Cloning repository...');
 
-      // Single insert — row is created here with the real commit_sha
       const analysis = await analysisModel.insert({
         id: analysisId, userId, repoUrl, repoOwner, repoName, commitSha, status: 'pending'
       });
@@ -209,11 +207,9 @@ interface GraphEdge {
   isCircular: boolean;
 }
 
-// ─── clone ─────────────────────────────────────────────────────────────────────
 
 async function cloneRepo(url: string): Promise<string> {
-  // Use os.tmpdir() directly without path.join with __dirname
-  const tempDir = path.join(os.tmpdir(), `cdv-${uuid()}`)  // ← this is fine
+  const tempDir = path.join(os.tmpdir(), `cdv-${uuid()}`)  
   await fs.mkdir(tempDir, { recursive: true })
 
   const clonePromise = simpleGit().clone(url, tempDir, [

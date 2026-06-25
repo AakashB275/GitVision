@@ -3,7 +3,6 @@ import analysisRoutes from './analysis.routes';
 import historyRouter from './history.routes';
 import userRouter from './user.routes'
 import savedRepoRouter from './savedRepo.routes'
-// import eventsRouter from './events.routes';
 
 const router: Router = express.Router();
 

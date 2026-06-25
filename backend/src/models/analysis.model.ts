@@ -1,7 +1,7 @@
 import db from '../db'
 
 interface InsertParams {
-  id?:       string;         // optional pre-generated UUID
+  id?:       string;         
   userId:    string;
   repoUrl:   string;
   repoOwner: string;

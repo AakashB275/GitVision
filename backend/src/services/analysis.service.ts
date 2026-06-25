@@ -30,7 +30,6 @@ export async function analyzeRepository(
   onProgress: (stage: string, progress: number, message: string) => Promise<void>
 ): Promise<GraphData> {
 
-  // Extract owner/repo from URL
   const match = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
   if (!match) throw new Error('Invalid GitHub URL');
   const [, owner, repo] = match;

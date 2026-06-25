@@ -14,11 +14,11 @@ export const REDIS_KEYS = {
   TEMP_ANALYSIS: (sessionId: string) => `temp:${sessionId}:analysis`,
 } as const;
 
-// TTL values in seconds
+
 export const CACHE_TTL = {
-  GRAPH: 3600, // 1 hour
-  REPO_METADATA: 86400, // 24 hours
+  GRAPH: 3600, 
+  REPO_METADATA: 86400, 
   ANALYSIS_METADATA: 3600,
-  PROGRESS: 1800, // 30 minutes
-  SESSION: 604800, // 7 days
+  PROGRESS: 1800,
+  SESSION: 604800, 
 } as const;
