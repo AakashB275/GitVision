@@ -1,11 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { getAuth } from '@clerk/express';
 import { requireAuthMiddleware } from '../middlewares/auth.middleware';
-import  db  from '../db';
 import { createAnalysisJob, getJobStatus } from '../jobs/analysis.jobs';
 import SSEService from '../services/sseSevice';
 import CacheService from '../services/redisCacheService';
 import { REDIS_KEYS } from '../config/redis-keys';
+import { userService } from '../services/userService';
+import { v4 as uuid } from 'uuid';
 
 const analysisRouter = Router();
 
@@ -16,7 +17,7 @@ const analysisRouter = Router();
 analysisRouter.post('/', requireAuthMiddleware, async (req: Request, res: Response) => {
   try {
     const { repositoryUrl, branch } = req.body;
-    const userId = getAuth(req).userId!;
+    const clerkId = getAuth(req).userId!;
 
     // Validate input
     if (!repositoryUrl) {
@@ -33,15 +34,13 @@ analysisRouter.post('/', requireAuthMiddleware, async (req: Request, res: Respon
     const repoOwner = match[1];
     const repoName = match[2].replace(/\.git$/, '');
 
-    // Create analysis record (columns must match the analyses table schema)
-    const result = await db.query(
-      `INSERT INTO analyses (user_id, repo_url, repo_owner, repo_name, status, created_at)
-       VALUES ($1, $2, $3, $4, $5, NOW())
-       RETURNING id, status, created_at`,
-      [userId, repositoryUrl, repoOwner, repoName, 'queued']
-    );
+    // Resolve internal UUID — analyses.user_id is UUID, not Clerk's string ID
+    const user = await userService.getOrCreateUser(clerkId);
+    const userId = user.id;
 
-    const analysisId = result.rows[0].id;
+    // Generate the analysis ID now so we can return it immediately.
+    // The job will do the real DB insert once it has the commit SHA.
+    const analysisId = uuid();
 
     // Queue the job
     const job = await createAnalysisJob(
@@ -56,7 +55,7 @@ analysisRouter.post('/', requireAuthMiddleware, async (req: Request, res: Respon
 
     res.json({
       id: analysisId,
-      status: 'queued',
+      status: 'pending',
       message: 'Analysis queued for processing',
       jobId: job.id,
     });
@@ -110,25 +109,17 @@ analysisRouter.get(
 
 /**
  * GET /api/analyses/:analysisId/stream
- * SSE endpoint for real-time progress
- * Supports auth via query param `token` since EventSource can't set headers.
+ * SSE endpoint for real-time progress.
+ * Auth token is passed via ?token= query param (EventSource can't set headers).
+ * The global middleware in app.ts promotes it into Authorization before Clerk runs.
  */
 analysisRouter.get(
   '/:analysisId/stream',
-  async (req: Request, res: Response, next) => {
-    // EventSource can't send Authorization headers, so accept token as query param
-    const token = req.query.token as string | undefined;
-    if (token && !req.headers.authorization) {
-      req.headers.authorization = `Bearer ${token}`;
-    }
-    next();
-  },
   requireAuthMiddleware,
   async (req: Request, res: Response) => {
     try {
       const analysisId = req.params.analysisId as string;
-      const auth = getAuth(req);
-      const userId = auth.userId!;
+      const userId = getAuth(req).userId!;
 
       // Setup SSE connection
       await SSEService.setupSSE(res, analysisId, userId);
@@ -139,15 +130,17 @@ analysisRouter.get(
   }
 );
 
+
 /**
  * GET /api/analyses
  * List user's analyses with cache
  */
 analysisRouter.get('/', requireAuthMiddleware, async (req: Request, res: Response) => {
   try {
-    const userId = getAuth(req).userId!;
+    const clerkId = getAuth(req).userId!;
+    const user = await userService.getOrCreateUser(clerkId);
 
-    const analyses = await CacheService.getUserAnalyses(userId);
+    const analyses = await CacheService.getUserAnalyses(user.id);
 
     res.json(analyses);
   } catch (err) {

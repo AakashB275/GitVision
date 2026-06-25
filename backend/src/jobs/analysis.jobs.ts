@@ -75,6 +75,8 @@ export const analysisWorker = new Worker<AnalysisJobData>(
 
       // Run analysis with progress callback
       const result = await analyzeRepository(
+        analysisId,
+        job.data.userId,
         job.data.repoUrl,
         job.data.branch || 'master',
         async (stage: string, progress: number, message: string) => {

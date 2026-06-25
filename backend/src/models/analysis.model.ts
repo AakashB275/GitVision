@@ -1,6 +1,7 @@
 import db from '../db'
 
 interface InsertParams {
+  id?:       string;         // optional pre-generated UUID
   userId:    string;
   repoUrl:   string;
   repoOwner: string;
@@ -10,7 +11,18 @@ interface InsertParams {
 }
 
 export async function insert(params: InsertParams) {
-  const { userId, repoUrl, repoOwner, repoName, commitSha, status } = params;
+  const { id, userId, repoUrl, repoOwner, repoName, commitSha, status } = params;
+
+  if (id) {
+    const result = await db.query(
+      `INSERT INTO analyses (id, user_id, repo_url, repo_owner, repo_name, commit_sha, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [id, userId, repoUrl, repoOwner, repoName, commitSha, status]
+    );
+    return result.rows[0];
+  }
+
   const result = await db.query(
     `INSERT INTO analyses (user_id, repo_url, repo_owner, repo_name, commit_sha, status)
      VALUES ($1, $2, $3, $4, $5, $6)

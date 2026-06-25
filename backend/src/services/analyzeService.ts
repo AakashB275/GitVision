@@ -8,6 +8,7 @@ import { githubService } from './githubService';
 import * as analysisModel from '../models/analysis.model';
 
 interface AnalyzeInput {
+  analysisId: string;
   userId:    string;
   repoUrl:   string;
   repoOwner: string;
@@ -17,7 +18,7 @@ interface AnalyzeInput {
 
 export const analyzeService = {
   async analyze({ 
-    userId, repoUrl, repoOwner, repoName, onProgress 
+    analysisId, userId, repoUrl, repoOwner, repoName, onProgress 
   }: AnalyzeInput) {
 
     try {
@@ -29,15 +30,17 @@ export const analyzeService = {
       
       const cached = await cacheService.getCachedGraph(commitSha);
       if (cached) {
-        await analysisModel.insert({ userId, repoUrl, repoOwner, repoName, commitSha, status: 'done' });
+        // Insert the record with the real commit_sha (row doesn't exist yet)
+        await analysisModel.insert({ id: analysisId, userId, repoUrl, repoOwner, repoName, commitSha, status: 'done' });
         await onProgress?.('completed', 100, 'Loaded from cache');
         return cached;
       }
 
       await onProgress?.('fetching', 15, 'Cloning repository...');
-      
+
+      // Single insert — row is created here with the real commit_sha
       const analysis = await analysisModel.insert({
-        userId, repoUrl, repoOwner, repoName, commitSha, status: 'pending'
+        id: analysisId, userId, repoUrl, repoOwner, repoName, commitSha, status: 'pending'
       });
 
       let tempDir: string | null = null;
@@ -64,6 +67,7 @@ export const analyzeService = {
       }
 
     } catch (err: any) {
+      await analysisModel.updateStatus(analysisId, 'failed', err?.message ?? 'Unknown error');
       await onProgress?.('error', 0, err?.message ?? 'Unknown error');
       throw err;
     }

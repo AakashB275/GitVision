@@ -37,8 +37,19 @@ app.use(cors({
   },
   credentials: true
 }));
+// SSE endpoints can't send custom headers, so the Clerk token is passed as
+// ?token=... query param. Promote it into Authorization BEFORE clerkMiddleware
+// runs so Clerk can validate it normally.
+app.use((req, _res, next) => {
+  const token = req.query.token as string | undefined;
+  if (token && !req.headers.authorization) {
+    req.headers.authorization = `Bearer ${token}`;
+  }
+  next();
+});
 app.use(clerkMiddleware());
 app.use(requestLogger);
+
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
@@ -117,5 +128,5 @@ app.listen(PORT, () => {
   console.log('Connect to NeonDB Postgres successfully');
   console.log(`Server is listening on Port ${PORT}`);
   console.log(`BullMQ worker started`);
-  console.log(`Redis connected`);
+  // console.log(`Redis connected`);
 });

@@ -81,7 +81,7 @@ export class CacheService {
       REDIS_KEYS.USER_REPOS(userId),
       async () => {
         const result = await db.query(
-          `SELECT id, repository_url, created_at, status 
+          `SELECT id, repo_url, created_at, status 
            FROM analyses 
            WHERE user_id = $1 
            ORDER BY created_at DESC`,
